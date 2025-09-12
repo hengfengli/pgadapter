@@ -65,7 +65,7 @@ def main():
     parser.add_argument("--instance", help="The spanner instance name.")
     parser.add_argument("--database", help="The database name.")
     parser.add_argument("--testcases", default="", help="Only run specified test cases. Separated by comma, e.g., 'int8,float8'")
-    parser.add_argument("--skip-container", default=False, help="Skip to start containers and only run pg_regress test")
+    parser.add_argument("--skip-container", action='store_true', help="Skip to start containers and only run pg_regress test")
     args = parser.parse_args()
 
     database_name = "test-database"
