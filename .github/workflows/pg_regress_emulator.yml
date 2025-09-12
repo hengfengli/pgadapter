@@ -1,0 +1,51 @@
+on:
+  workflow_dispatch:
+  schedule:
+    # Run at 08:36UTC every day.
+    - cron: '36 8 * * *'
+name: pg_regress_emulator
+jobs:
+  pg-regress-emulator:
+    services:
+      emulator:
+        image: gcr.io/cloud-spanner-pg-adapter/pgadapter-emulator
+        ports:
+          - 5432:5432
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PGAdapter repo
+        uses: actions/checkout@v5
+        with:
+          path: pgadapter
+      - name: Checkout OSS PG repo
+        uses: actions/checkout@v5
+        with:
+          repository: postgres/postgres
+          path: postgres
+          ref: REL_16_0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Setup psql
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-client-17
+      - name: Copy patch and script files
+        run: |
+          cp pgadapter/benchmarks/pg_regress/*.patch postgres/src/test/regress/
+          cp pgadapter/benchmarks/pg_regress/start_test.py postgres/src/test/regress/
+          cp pgadapter/benchmarks/pg_regress/compare_results.py postgres/src/test/regress/
+      - name: Apply patches
+        working-directory: ./postgres/src/test/regress/
+        run: |
+          git apply expected.patch
+          git apply sql.patch
+          git apply code.patch
+      - name: Run test
+        working-directory: ./postgres/src/test/regress/
+        run: |
+          python start_test.py spanner_emulator --skip-container
+          python compare_results.py expected/ results/
