@@ -34,8 +34,7 @@ jobs:
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v3'
         with:
-          export_default_credentials: true
-          install_components: 'beta'
+          project_id: ${{ env.GOOGLE_CLOUD_PROJECT }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.9'

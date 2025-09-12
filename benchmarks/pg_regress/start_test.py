@@ -70,9 +70,12 @@ def main():
 
     database_name = "test-database"
     username = "root"
-    if not args.database and args.target == "spanner_prod":
-      random_suffix = str(uuid.uuid4())[:6]
-      database_name = f"test-database-{random_suffix}"
+    if args.target == "spanner_prod":
+      if args.database:
+          database_name = args.database
+      else:
+        random_suffix = str(uuid.uuid4())[:6]
+        database_name = f"test-database-{random_suffix}"
     if args.target == "cockroachdb":
       database_name = "defaultdb"
     if args.target == "oss_pg":
@@ -116,8 +119,8 @@ def main():
             print("Error: could not start the container.")
             sys.exit(1)
 
-        print("Program execution paused for 5 seconds...")
-        time.sleep(5)
+    print("Program execution paused for 5 seconds...")
+    time.sleep(5)
 
     # 4. test_setup.sql
     execute_cmd(f"./pg_regress --bindir=/usr/bin --host=127.0.0.1 --port=5432 --user={username} --dbname={database_name} --use-existing test_setup")
