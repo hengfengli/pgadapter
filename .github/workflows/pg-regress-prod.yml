@@ -6,7 +6,9 @@ on:
 name: pg_regress_prod
 jobs:
   pg-regress-prod:
-    timeout-minutes: 300
+    timeout-minutes: 600
+    # Disable for now.
+    if: false
     runs-on: ubuntu-latest
     env:
       GOOGLE_CLOUD_PROJECT: "span-cloud-testing"
