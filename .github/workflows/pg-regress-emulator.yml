@@ -69,14 +69,14 @@ jobs:
         working-directory: ./postgres/src/test/regress/
         run: |
           if gcloud storage ls ${{env.GCS_BUCKET_PATH}}/results_latest.json; then
-            gcloud storage cp ${{env.GCS_BUCKET_PATH}}/results_latest.json ./
+            gcloud storage cp ${{env.GCS_BUCKET_PATH}}/results_latest.json results_latest.json
             echo "has_latest_file=true" >> $GITHUB_OUTPUT
           else
             echo "has_latest_file=false" >> $GITHUB_OUTPUT
           fi
       - name: Compare json results
         working-directory: ./postgres/src/test/regress/
-        if: needs.latest_gcs_file.outputs.has_latest_file == 'true'
+        if: steps.latest_gcs_file.outputs.has_latest_file == 'true'
         run: |
           prev_passed=$(jq -r '.overall.passed' results-latest.json)
           curr_passed=$(jq -r '.overall.passed' results.json)
