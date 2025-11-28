@@ -1,20 +1,19 @@
 on:
   workflow_dispatch:
   schedule:
-    # Run at 09:36UTC every day.
-    - cron: '36 9 * * *'
+    # Run at 01:36UTC every Saturday.
+    - cron: '36 1 * * 6'
 name: pg_regress_prod
 jobs:
   pg-regress-prod:
-    timeout-minutes: 600
-    # Disable for now.
-    if: false
+    timeout-minutes: 1200
     runs-on: ubuntu-latest
     env:
       GOOGLE_CLOUD_PROJECT: "span-cloud-testing"
       GOOGLE_CLOUD_INSTANCE: "pgadapter-testing"
       GOOGLE_CLOUD_DATABASE: "pg_regress"
       GOOGLE_CLOUD_ENDPOINT: "spanner.googleapis.com"
+      GCS_BUCKET_PATH: "gs://pgadapter-pg-regress/prod-results"
     steps:
       - name: Checkout PGAdapter repo
         uses: actions/checkout@v5
@@ -74,3 +73,31 @@ jobs:
                 --instance ${{env.GOOGLE_CLOUD_INSTANCE}} \
                 --database ${{env.GOOGLE_CLOUD_DATABASE}}
           python compare_results.py expected/ results/
+      - id: latest_gcs_file
+        name: Download the previous latest result
+        working-directory: ./postgres/src/test/regress/
+        run: |
+          if gcloud storage ls ${{env.GCS_BUCKET_PATH}}/results_latest.json; then
+            gcloud storage cp ${{env.GCS_BUCKET_PATH}}/results_latest.json results_latest.json
+            echo "has_latest_file=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_latest_file=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Upload results
+        working-directory: ./postgres/src/test/regress/
+        run: |
+          ts=$(date +%s)
+          gcloud storage cp results.json ${{env.GCS_BUCKET_PATH}}/results_$ts.json
+          gcloud storage cp regression.diffs ${{env.GCS_BUCKET_PATH}}/regression_$ts.diffs
+      - name: Compare json results
+        working-directory: ./postgres/src/test/regress/
+        if: steps.latest_gcs_file.outputs.has_latest_file == 'true'
+        run: |
+          prev_passed=$(jq -r '.overall.passed' results_latest.json)
+          curr_passed=$(jq -r '.overall.passed' results.json)
+          if (( $curr_passed < $prev_passed )); then
+            echo "Fail: $curr_passed is less than $prev_passed. Please check!"
+            exit 1
+          fi
+          gcloud storage cp results.json ${{env.GCS_BUCKET_PATH}}/results_latest.json
+
